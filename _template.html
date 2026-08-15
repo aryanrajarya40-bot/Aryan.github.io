@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESSAY TITLE — Marginalia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,700;0,900;1,700&family=Public+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="nav">
+    <a href="../index.html" class="nav__brand">margin<span>alia</span></a>
+    <div class="nav__links">
+      <a href="../index.html">Essays</a>
+      <a href="../about.html">About</a>
+    </div>
+  </nav>
+</div>
+
+<!--
+  Category colors (pick one, use consistently in the meta span and the rule below):
+  Craft    -> var(--coral)
+  Noticing -> var(--cobalt)
+  Memory   -> var(--violet)
+  Time     -> var(--sunflower)  (use #B8860B for the text color, sunflower is too light to read)
+-->
+
+<article>
+  <div class="essay-header">
+    <span class="spine__meta" style="color: var(--coral);">CATEGORY &middot; N min read</span>
+    <h1>ESSAY TITLE</h1>
+    <p class="dek">One-sentence dek that sets up the essay.</p>
+  </div>
+  <div class="essay-rule"></div>
+  <div class="essay-body">
+    <p>First paragraph...</p>
+    <h2>An optional subheading</h2>
+    <p>More paragraphs...</p>
+    <blockquote>An optional pull quote.</blockquote>
+    <p>Closing paragraph...</p>
+  </div>
+</article>
+
+<div class="wrap">
+  <p style="max-width: var(--max-w); margin: 0 auto 40px;"><a href="../index.html" class="back-link">&larr; Back to essays</a></p>
+  <footer>
+    <span>&copy; 2026 Marginalia. Built with plain HTML.</span>
+    <a href="https://github.com/" target="_blank" rel="noopener">View source on GitHub</a>
+  </footer>
+</div>
+
+</body>
+</html>
