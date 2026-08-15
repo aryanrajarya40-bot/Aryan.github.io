@@ -1,0 +1,825 @@
+import React, { useState, useEffect, useId } from "react";
+import {
+  LayoutDashboard, Users, CalendarCheck2, IndianRupee, Megaphone,
+  Search, Plus, Phone, ChevronRight, X, Check, Clock3, XCircle,
+  ArrowUpRight, GraduationCap, CalendarDays, Wallet2, UserPlus,
+} from "lucide-react";
+
+/* ----------------------------- design tokens ----------------------------- */
+const T = {
+  ink: "#16233F",
+  inkSoft: "#2B3A5C",
+  paper: "#FBF6EC",
+  paperAlt: "#F3EAD3",
+  card: "#FFFFFF",
+  line: "#E6DCC2",
+  peacock: "#0B6E6E",
+  peacockDark: "#084F4F",
+  marigold: "#E7A33E",
+  marigoldDark: "#B9791F",
+  maroon: "#8C2F39",
+  maroonDark: "#6E232B",
+  sage: "#4F7A54",
+  sageDark: "#3A5B3E",
+  textSoft: "#6B6255",
+};
+
+const FONTS = {
+  display: { fontFamily: "'Fraunces', Georgia, serif" },
+  body: { fontFamily: "'Inter', system-ui, sans-serif" },
+  mono: { fontFamily: "'IBM Plex Mono', monospace" },
+};
+
+const INR = (n) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const fmtDate = (iso) =>
+  new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+const CURRENT_TERM = "Term 2 · 2026–27";
+
+/* ------------------------------- seed data ------------------------------- */
+const STUDENTS_SEED = [
+  { id: "s1", name: "Zara Khan", cls: "III-A", roll: 1, parent: "Imran Khan", phone: "98110 22341" },
+  { id: "s2", name: "Dhruv Bhatt", cls: "III-A", roll: 2, parent: "Neha Bhatt", phone: "98110 22987" },
+  { id: "s3", name: "Riya Desai", cls: "III-A", roll: 3, parent: "Sanjay Desai", phone: "98110 21456" },
+  { id: "s4", name: "Aarav Sharma", cls: "V-A", roll: 1, parent: "Rohit Sharma", phone: "99530 11234" },
+  { id: "s5", name: "Diya Patel", cls: "V-A", roll: 2, parent: "Kavita Patel", phone: "99530 11987" },
+  { id: "s6", name: "Kabir Singh", cls: "V-A", roll: 3, parent: "Harpreet Singh", phone: "99530 12456" },
+  { id: "s7", name: "Ananya Reddy", cls: "V-A", roll: 4, parent: "Suresh Reddy", phone: "99530 13210" },
+  { id: "s8", name: "Vihaan Gupta", cls: "V-A", roll: 5, parent: "Meera Gupta", phone: "99530 13876" },
+  { id: "s9", name: "Ishita Verma", cls: "VI-B", roll: 1, parent: "Alok Verma", phone: "97170 44521" },
+  { id: "s10", name: "Arjun Nair", cls: "VI-B", roll: 2, parent: "Priya Nair", phone: "97170 44988" },
+  { id: "s11", name: "Myra Joshi", cls: "VI-B", roll: 3, parent: "Deepak Joshi", phone: "97170 45210" },
+  { id: "s12", name: "Reyansh Iyer", cls: "VI-B", roll: 4, parent: "Lakshmi Iyer", phone: "97170 45766" },
+  { id: "s13", name: "Saanvi Rao", cls: "VI-B", roll: 5, parent: "Vikram Rao", phone: "97170 46102" },
+  { id: "s14", name: "Vivaan Malhotra", cls: "VIII-A", roll: 1, parent: "Anil Malhotra", phone: "98730 77123" },
+  { id: "s15", name: "Aadhya Menon", cls: "VIII-A", roll: 2, parent: "Radhika Menon", phone: "98730 77654" },
+  { id: "s16", name: "Kian Chatterjee", cls: "VIII-A", roll: 3, parent: "Sourav Chatterjee", phone: "98730 78210" },
+  { id: "s17", name: "Navya Pillai", cls: "VIII-A", roll: 4, parent: "Ramesh Pillai", phone: "98730 78899" },
+  { id: "s18", name: "Aryan Kapoor", cls: "VIII-A", roll: 5, parent: "Simran Kapoor", phone: "98730 79345" },
+];
+
+const FEE_BY_CLASS = { "III-A": 14000, "V-A": 16000, "VI-B": 18000, "VIII-A": 20000 };
+const PAID_IDS = new Set(["s1", "s3", "s4", "s6", "s8", "s10", "s11", "s13", "s14", "s16", "s17"]);
+
+const FEE_SEED = STUDENTS_SEED.map((s) => {
+  const paid = PAID_IDS.has(s.id);
+  return {
+    id: `f-${s.id}`,
+    studentId: s.id,
+    term: CURRENT_TERM,
+    amount: FEE_BY_CLASS[s.cls],
+    status: paid ? "paid" : "due",
+    dueDate: "2026-08-31",
+    paidOn: paid ? "2026-07-22" : null,
+    mode: paid ? "UPI" : null,
+  };
+});
+
+const ATT_DATES = ["2026-08-12", "2026-08-13", "2026-08-14"];
+const ATT_CLASSES = ["V-A", "VI-B"];
+const ATTENDANCE_SEED = [];
+STUDENTS_SEED.filter((s) => ATT_CLASSES.includes(s.cls)).forEach((s) => {
+  ATT_DATES.forEach((date, i) => {
+    const roll = s.roll;
+    const status = (roll + i) % 5 === 0 ? "absent" : (roll + i) % 7 === 0 ? "leave" : "present";
+    ATTENDANCE_SEED.push({ id: `${date}__${s.id}`, studentId: s.id, date, status });
+  });
+});
+
+const NOTICES_SEED = [
+  { id: "n1", title: "Term 2 fee due reminder", date: "2026-08-14", audience: "Parents", body: "Parents are reminded that Term 2 fees are due by the end of this month. Kindly clear pending dues at the front office or via the fee payment counter to avoid late charges." },
+  { id: "n2", title: "Independence Day celebration", date: "2026-08-13", audience: "All", body: "The school will celebrate Independence Day with a flag hoisting ceremony followed by cultural performances. All students should report in white or tricolour attire." },
+  { id: "n3", title: "Parent-Teacher meeting — Term 2", date: "2026-08-10", audience: "Parents", body: "Parent-teacher meetings for Term 2 will be held for all classes. Please check your ward's class schedule shared by the class teacher and plan to attend." },
+  { id: "n4", title: "Annual Sports Day — save the date", date: "2026-08-08", audience: "All", body: "The Annual Sports Day will be held next month. Practice sessions for track and field events begin this week during the games period." },
+  { id: "n5", title: "Staff meeting — monthly review", date: "2026-08-05", audience: "Teachers", body: "All teaching staff are requested to attend the monthly academic review meeting in the staff room after school hours." },
+];
+
+/* ------------------------------ small pieces ------------------------------ */
+function Crest({ size = 40 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" style={{ flexShrink: 0 }}>
+      <circle cx="20" cy="20" r="19" fill={T.ink} stroke={T.marigold} strokeWidth="1.5" />
+      <circle cx="20" cy="20" r="11" fill="none" stroke={T.marigold} strokeWidth="1.1" />
+      <circle cx="20" cy="20" r="6" fill={T.peacock} />
+      <circle cx="20" cy="20" r="2.2" fill={T.marigold} />
+    </svg>
+  );
+}
+
+function ProgressRing({ percent, size = 84, stroke = 8, from = T.marigold, to = T.peacock, children }) {
+  const uid = useId();
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.min(Math.max(percent, 0), 100);
+  const offset = c - (pct / 100) * c;
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size}>
+        <defs>
+          <linearGradient id={`g-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={from} />
+            <stop offset="100%" stopColor={to} />
+          </linearGradient>
+        </defs>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={T.line} strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`url(#g-${uid})`}
+          strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: "stroke-dashoffset 0.7s ease" }}
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const TONES = {
+  sage: { bg: "#E9F1E7", fg: T.sageDark },
+  maroon: { bg: "#F5E7E5", fg: T.maroonDark },
+  marigold: { bg: "#FBF0DC", fg: T.marigoldDark },
+  peacock: { bg: "#E1EFEE", fg: T.peacockDark },
+};
+function Badge({ tone = "peacock", children }) {
+  const c = TONES[tone];
+  return (
+    <span
+      className="text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1"
+      style={{ backgroundColor: c.bg, color: c.fg, ...FONTS.body }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SectionTitle({ eyebrow, title, right }) {
+  return (
+    <div className="flex items-end justify-between mb-4 gap-3">
+      <div>
+        {eyebrow && (
+          <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: T.peacockDark, ...FONTS.body }}>
+            {eyebrow}
+          </div>
+        )}
+        <h2 className="text-2xl" style={{ color: T.ink, fontWeight: 600, ...FONTS.display }}>
+          {title}
+        </h2>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function Card({ children, className = "", style = {} }) {
+  return (
+    <div
+      className={`rounded-2xl ${className}`}
+      style={{ backgroundColor: T.card, border: `1px solid ${T.line}`, boxShadow: "0 1px 2px rgba(22,35,63,0.04)", ...style }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Button({ children, onClick, variant = "primary", type = "button", disabled, className = "" }) {
+  const styles = {
+    primary: { backgroundColor: T.peacock, color: "#fff" },
+    marigold: { backgroundColor: T.marigold, color: T.ink },
+    ghost: { backgroundColor: "transparent", color: T.ink, border: `1px solid ${T.line}` },
+    danger: { backgroundColor: T.maroon, color: "#fff" },
+  };
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition disabled:opacity-40 ${className}`}
+      style={{ ...styles[variant], ...FONTS.body }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Modal({ open, onClose, title, children }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ backgroundColor: "rgba(22,35,63,0.55)" }} onClick={onClose}>
+      <div
+        className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
+        style={{ backgroundColor: T.paper, ...FONTS.body }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold" style={{ color: T.ink, ...FONTS.display }}>{title}</h3>
+          <button onClick={onClose} style={{ color: T.textSoft }}><X size={20} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block mb-3">
+      <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textSoft }}>{label}</span>
+      <div className="mt-1">{children}</div>
+    </label>
+  );
+}
+const inputStyle = { backgroundColor: "#fff", border: `1px solid ${T.line}`, color: T.ink };
+const inputClass = "w-full px-3 py-2 rounded-lg text-sm focus:outline-none";
+
+/* --------------------------------- app --------------------------------- */
+export default function App() {
+  const [tab, setTab] = useState("dashboard");
+  const [students, setStudents] = useState(STUDENTS_SEED);
+  const [fees, setFees] = useState(FEE_SEED);
+  const [attendance, setAttendance] = useState(ATTENDANCE_SEED);
+  const [notices, setNotices] = useState(NOTICES_SEED);
+
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+  const [addNoticeOpen, setAddNoticeOpen] = useState(false);
+  const [payModal, setPayModal] = useState(null);
+  const [studentDetail, setStudentDetail] = useState(null);
+
+  const classList = [...new Set(students.map((s) => s.cls))].sort();
+
+  const feeFor = (studentId) => fees.find((f) => f.studentId === studentId);
+  const attendancePct = (studentId) => {
+    const recs = attendance.filter((a) => a.studentId === studentId);
+    if (!recs.length) return null;
+    const present = recs.filter((r) => r.status === "present").length;
+    return Math.round((present / recs.length) * 100);
+  };
+
+  const totalCollected = fees.filter((f) => f.status === "paid").reduce((a, f) => a + f.amount, 0);
+  const totalDue = fees.filter((f) => f.status === "due").reduce((a, f) => a + f.amount, 0);
+  const totalExpected = totalCollected + totalDue;
+  const collectedPct = totalExpected ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  const dueCount = fees.filter((f) => f.status === "due").length;
+
+  const today = todayStr();
+  const todaysRecords = attendance.filter((a) => a.date === today);
+  const todaysPct = todaysRecords.length
+    ? Math.round((todaysRecords.filter((r) => r.status === "present").length / todaysRecords.length) * 100)
+    : null;
+
+  function markPaid(feeId, mode) {
+    setFees((prev) => prev.map((f) => (f.id === feeId ? { ...f, status: "paid", paidOn: todayStr(), mode } : f)));
+    setPayModal(null);
+  }
+
+  function addStudent(data) {
+    const id = `s-${Date.now()}`;
+    setStudents((prev) => [...prev, { id, ...data }]);
+    setFees((prev) => [
+      ...prev,
+      { id: `f-${id}`, studentId: id, term: CURRENT_TERM, amount: Number(data.feeAmount) || 15000, status: "due", dueDate: "2026-08-31", paidOn: null, mode: null },
+    ]);
+    setAddStudentOpen(false);
+  }
+
+  function addNotice(data) {
+    setNotices((prev) => [{ id: `n-${Date.now()}`, date: todayStr(), ...data }, ...prev]);
+    setAddNoticeOpen(false);
+  }
+
+  function upsertAttendance(records) {
+    setAttendance((prev) => {
+      const filtered = prev.filter((p) => !records.some((r) => r.id === p.id));
+      return [...filtered, ...records];
+    });
+  }
+
+  const NAV = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "students", label: "Students", icon: Users },
+    { id: "attendance", label: "Attendance", icon: CalendarCheck2 },
+    { id: "fees", label: "Fees", icon: IndianRupee },
+    { id: "notices", label: "Notices", icon: Megaphone },
+  ];
+
+  return (
+    <div className="min-h-screen w-full flex" style={{ backgroundColor: T.paper, ...FONTS.body }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');`}</style>
+
+      {/* desktop sidebar */}
+      <aside className="hidden md:flex flex-col w-60 shrink-0 min-h-screen sticky top-0" style={{ backgroundColor: T.ink }}>
+        <div className="p-5 flex items-center gap-3" style={{ borderBottom: `1px solid ${T.inkSoft}` }}>
+          <Crest size={38} />
+          <div>
+            <div className="text-sm font-semibold leading-tight" style={{ color: T.paper, ...FONTS.display }}>The Kanha<br />International School</div>
+          </div>
+        </div>
+        <div className="px-5 py-3 text-xs" style={{ color: T.marigold, borderBottom: `1px solid ${T.inkSoft}` }}>
+          विद्या ददाति विनयम् <span style={{ color: "#C9C2AE" }}>· knowledge gives humility</span>
+        </div>
+        <nav className="flex-1 p-3 flex flex-col gap-1">
+          {NAV.map((n) => {
+            const Icon = n.icon;
+            const active = tab === n.id;
+            return (
+              <button
+                key={n.id}
+                onClick={() => setTab(n.id)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left"
+                style={{
+                  backgroundColor: active ? T.peacockDark : "transparent",
+                  color: active ? "#fff" : "#C9C2AE",
+                }}
+              >
+                <Icon size={18} />
+                {n.label}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="p-4 text-xs" style={{ color: "#8891A8", borderTop: `1px solid ${T.inkSoft}` }}>
+          Academic Year 2026–27<br />Front Office · Admin
+        </div>
+      </aside>
+
+      {/* main */}
+      <main className="flex-1 min-h-screen pb-24 md:pb-8">
+        <header className="md:hidden flex items-center gap-3 p-4" style={{ backgroundColor: T.ink }}>
+          <Crest size={32} />
+          <div className="text-sm font-semibold" style={{ color: T.paper, ...FONTS.display }}>The Kanha International School</div>
+        </header>
+
+        <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+          {tab === "dashboard" && (
+            <Dashboard
+              students={students} todaysPct={todaysPct} collectedPct={collectedPct}
+              totalCollected={totalCollected} totalDue={totalDue} dueCount={dueCount}
+              notices={notices} setTab={setTab}
+            />
+          )}
+
+          {tab === "students" && (
+            <Students
+              students={students} classList={classList} feeFor={feeFor} attendancePct={attendancePct}
+              onAdd={() => setAddStudentOpen(true)} onOpen={setStudentDetail}
+            />
+          )}
+
+          {tab === "attendance" && (
+            <Attendance
+              students={students} classList={classList} attendance={attendance}
+              onSave={upsertAttendance} todaysPct={todaysPct}
+            />
+          )}
+
+          {tab === "fees" && (
+            <Fees
+              students={students} fees={fees} collectedPct={collectedPct}
+              totalCollected={totalCollected} totalDue={totalDue} onPay={setPayModal}
+            />
+          )}
+
+          {tab === "notices" && <Notices notices={notices} onAdd={() => setAddNoticeOpen(true)} />}
+        </div>
+      </main>
+
+      {/* mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex justify-around py-2" style={{ backgroundColor: T.ink, borderTop: `1px solid ${T.inkSoft}` }}>
+        {NAV.map((n) => {
+          const Icon = n.icon;
+          const active = tab === n.id;
+          return (
+            <button key={n.id} onClick={() => setTab(n.id)} className="flex flex-col items-center gap-1 px-2 py-1">
+              <Icon size={20} color={active ? T.marigold : "#8891A8"} />
+              <span className="text-[10px] font-medium" style={{ color: active ? T.marigold : "#8891A8" }}>{n.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* modals */}
+      <AddStudentModal open={addStudentOpen} onClose={() => setAddStudentOpen(false)} onAdd={addStudent} />
+      <AddNoticeModal open={addNoticeOpen} onClose={() => setAddNoticeOpen(false)} onAdd={addNotice} />
+      <PayModal fee={payModal} student={payModal && students.find((s) => s.id === payModal.studentId)} onClose={() => setPayModal(null)} onConfirm={markPaid} />
+      <StudentDetailModal
+        student={studentDetail} onClose={() => setStudentDetail(null)}
+        fee={studentDetail && feeFor(studentDetail.id)} pct={studentDetail && attendancePct(studentDetail.id)}
+        records={studentDetail ? attendance.filter((a) => a.studentId === studentDetail.id).sort((a, b) => (a.date < b.date ? 1 : -1)) : []}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------- dashboard ------------------------------- */
+function Dashboard({ students, todaysPct, collectedPct, totalCollected, totalDue, dueCount, notices, setTab }) {
+  return (
+    <div>
+      <SectionTitle eyebrow={CURRENT_TERM} title="Good day, welcome back" />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <Card className="p-4 flex flex-col justify-between" style={{ minHeight: 130 }}>
+          <div className="flex items-center gap-2" style={{ color: T.textSoft }}><Users size={16} /><span className="text-xs font-semibold uppercase tracking-wide">Students</span></div>
+          <div className="text-3xl font-bold" style={{ color: T.ink, ...FONTS.mono }}>{students.length}</div>
+        </Card>
+
+        <Card className="p-4 flex items-center gap-3" style={{ minHeight: 130 }}>
+          <ProgressRing percent={todaysPct ?? 0} size={62} stroke={7}>
+            <span className="text-sm font-bold" style={{ color: T.ink, ...FONTS.mono }}>{todaysPct === null ? "—" : `${todaysPct}%`}</span>
+          </ProgressRing>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textSoft }}>Today's attendance</div>
+            {todaysPct === null ? (
+              <button onClick={() => setTab("attendance")} className="text-xs font-semibold mt-1" style={{ color: T.peacockDark }}>Not marked yet →</button>
+            ) : (
+              <div className="text-xs mt-1" style={{ color: T.textSoft }}>across marked classes</div>
+            )}
+          </div>
+        </Card>
+
+        <Card className="p-4 flex items-center gap-3" style={{ minHeight: 130 }}>
+          <ProgressRing percent={collectedPct} size={62} stroke={7}>
+            <span className="text-sm font-bold" style={{ color: T.ink, ...FONTS.mono }}>{collectedPct}%</span>
+          </ProgressRing>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textSoft }}>Fees collected</div>
+            <div className="text-sm font-semibold mt-1" style={{ color: T.sageDark, ...FONTS.mono }}>{INR(totalCollected)}</div>
+          </div>
+        </Card>
+
+        <Card className="p-4 flex flex-col justify-between" style={{ minHeight: 130 }}>
+          <div className="flex items-center gap-2" style={{ color: T.textSoft }}><Wallet2 size={16} /><span className="text-xs font-semibold uppercase tracking-wide">Pending dues</span></div>
+          <div>
+            <div className="text-xl font-bold" style={{ color: T.maroonDark, ...FONTS.mono }}>{INR(totalDue)}</div>
+            <div className="text-xs mt-0.5" style={{ color: T.textSoft }}>{dueCount} student{dueCount !== 1 ? "s" : ""}</div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Button variant="marigold" onClick={() => setTab("attendance")}><CalendarCheck2 size={16} /> Mark attendance</Button>
+        <Button variant="ghost" onClick={() => setTab("fees")}><IndianRupee size={16} /> Record payment</Button>
+        <Button variant="ghost" onClick={() => setTab("notices")}><Megaphone size={16} /> Post notice</Button>
+      </div>
+
+      <SectionTitle title="Recent notices" right={<button onClick={() => setTab("notices")} className="text-xs font-semibold flex items-center gap-1" style={{ color: T.peacockDark }}>View all <ChevronRight size={14} /></button>} />
+      <div className="flex flex-col gap-3">
+        {notices.slice(0, 3).map((n) => (
+          <Card key={n.id} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-semibold text-sm" style={{ color: T.ink }}>{n.title}</div>
+                <div className="text-sm mt-1" style={{ color: T.textSoft }}>{n.body}</div>
+              </div>
+              <Badge tone="peacock">{n.audience}</Badge>
+            </div>
+            <div className="text-xs mt-2" style={{ color: T.textSoft, ...FONTS.mono }}>{fmtDate(n.date)}</div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------- students -------------------------------- */
+function Students({ students, classList, feeFor, attendancePct, onAdd, onOpen }) {
+  const [q, setQ] = useState("");
+  const [cls, setCls] = useState("All");
+
+  const filtered = students.filter((s) => {
+    const matchQ = s.name.toLowerCase().includes(q.toLowerCase()) || String(s.roll).includes(q);
+    const matchCls = cls === "All" || s.cls === cls;
+    return matchQ && matchCls;
+  });
+
+  return (
+    <div>
+      <SectionTitle title="Students" right={<Button onClick={onAdd}><UserPlus size={16} /> Add student</Button>} />
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: "#fff", border: `1px solid ${T.line}` }}>
+          <Search size={16} color={T.textSoft} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or roll no." className="w-full text-sm focus:outline-none" style={{ color: T.ink }} />
+        </div>
+        <select value={cls} onChange={(e) => setCls(e.target.value)} className="px-3 py-2 rounded-xl text-sm focus:outline-none" style={inputStyle}>
+          <option>All</option>
+          {classList.map((c) => <option key={c}>{c}</option>)}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {filtered.map((s) => {
+          const fee = feeFor(s.id);
+          const pct = attendancePct(s.id);
+          return (
+            <Card key={s.id} className="p-3 sm:p-4 flex items-center justify-between gap-3 cursor-pointer" onClick={() => onOpen(s)}>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold" style={{ backgroundColor: T.paperAlt, color: T.peacockDark, ...FONTS.mono }}>
+                  {s.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm truncate" style={{ color: T.ink }}>{s.name}</div>
+                  <div className="text-xs" style={{ color: T.textSoft, ...FONTS.mono }}>{s.cls} · Roll {s.roll}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                {pct !== null && <span className="text-xs hidden sm:inline" style={{ color: T.textSoft, ...FONTS.mono }}>{pct}% present</span>}
+                <Badge tone={fee?.status === "paid" ? "sage" : "maroon"}>{fee?.status === "paid" ? "Paid" : "Due"}</Badge>
+                <ChevronRight size={16} color={T.textSoft} />
+              </div>
+            </Card>
+          );
+        })}
+        {filtered.length === 0 && <div className="text-sm p-6 text-center" style={{ color: T.textSoft }}>No students match your search.</div>}
+      </div>
+    </div>
+  );
+}
+
+function AddStudentModal({ open, onClose, onAdd }) {
+  const [form, setForm] = useState({ name: "", cls: "", roll: "", parent: "", phone: "", feeAmount: "" });
+  useEffect(() => { if (open) setForm({ name: "", cls: "", roll: "", parent: "", phone: "", feeAmount: "" }); }, [open]);
+  return (
+    <Modal open={open} onClose={onClose} title="Add student">
+      <Field label="Full name"><input className={inputClass} style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Ira Bansal" /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Class · section"><input className={inputClass} style={inputStyle} value={form.cls} onChange={(e) => setForm({ ...form, cls: e.target.value })} placeholder="e.g. VII-A" /></Field>
+        <Field label="Roll no."><input type="number" className={inputClass} style={inputStyle} value={form.roll} onChange={(e) => setForm({ ...form, roll: e.target.value })} /></Field>
+      </div>
+      <Field label="Parent / guardian name"><input className={inputClass} style={inputStyle} value={form.parent} onChange={(e) => setForm({ ...form, parent: e.target.value })} /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Phone"><input className={inputClass} style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="98xxx xxxxx" /></Field>
+        <Field label="Term fee (₹)"><input type="number" className={inputClass} style={inputStyle} value={form.feeAmount} onChange={(e) => setForm({ ...form, feeAmount: e.target.value })} placeholder="16000" /></Field>
+      </div>
+      <Button
+        className="w-full justify-center mt-2" variant="marigold"
+        disabled={!form.name || !form.cls || !form.roll}
+        onClick={() => onAdd({ ...form, roll: Number(form.roll) })}
+      >
+        <Plus size={16} /> Add student
+      </Button>
+    </Modal>
+  );
+}
+
+function StudentDetailModal({ student, onClose, fee, pct, records }) {
+  if (!student) return null;
+  return (
+    <Modal open={!!student} onClose={onClose} title={student.name}>
+      <div className="text-sm mb-4" style={{ color: T.textSoft }}>{student.cls} · Roll {student.roll}</div>
+      <div className="flex items-center gap-2 mb-3 text-sm" style={{ color: T.ink }}><Phone size={14} /> {student.parent} · {student.phone}</div>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Card className="p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: T.textSoft }}>Fee status</div>
+          <Badge tone={fee?.status === "paid" ? "sage" : "maroon"}>{fee?.status === "paid" ? `Paid · ${INR(fee.amount)}` : `Due · ${INR(fee?.amount || 0)}`}</Badge>
+        </Card>
+        <Card className="p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: T.textSoft }}>Attendance</div>
+          <div className="text-sm font-bold" style={{ color: T.ink, ...FONTS.mono }}>{pct === null ? "No data" : `${pct}%`}</div>
+        </Card>
+      </div>
+      {records.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: T.textSoft }}>Recent attendance</div>
+          <div className="flex flex-col gap-1">
+            {records.slice(0, 5).map((r) => (
+              <div key={r.id} className="flex items-center justify-between text-sm py-1">
+                <span style={{ color: T.ink, ...FONTS.mono }}>{fmtDate(r.date)}</span>
+                <Badge tone={r.status === "present" ? "sage" : r.status === "leave" ? "marigold" : "maroon"}>{r.status}</Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ------------------------------- attendance ------------------------------- */
+function Attendance({ students, classList, attendance, onSave, todaysPct }) {
+  const [cls, setCls] = useState(classList[0] || "");
+  const [date, setDate] = useState(todayStr());
+  const [draft, setDraft] = useState({});
+  const [saved, setSaved] = useState(false);
+
+  const roster = students.filter((s) => s.cls === cls);
+
+  useEffect(() => {
+    const next = {};
+    roster.forEach((s) => {
+      const existing = attendance.find((a) => a.studentId === s.id && a.date === date);
+      next[s.id] = existing ? existing.status : "present";
+    });
+    setDraft(next);
+    setSaved(false);
+    // eslint-disable-next-line
+  }, [cls, date]);
+
+  const summary = roster.reduce(
+    (acc, s) => { acc[draft[s.id]] = (acc[draft[s.id]] || 0) + 1; return acc; },
+    {}
+  );
+
+  function save() {
+    const records = roster.map((s) => ({ id: `${date}__${s.id}`, studentId: s.id, date, status: draft[s.id] }));
+    onSave(records);
+    setSaved(true);
+  }
+
+  const STATUS_OPTS = [
+    { id: "present", label: "Present", tone: "sage", icon: Check },
+    { id: "absent", label: "Absent", tone: "maroon", icon: XCircle },
+    { id: "leave", label: "Leave", tone: "marigold", icon: Clock3 },
+  ];
+
+  return (
+    <div>
+      <SectionTitle eyebrow={todaysPct === null ? "Today not marked yet" : `Today: ${todaysPct}% present`} title="Mark attendance" />
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <select value={cls} onChange={(e) => setCls(e.target.value)} className="px-3 py-2 rounded-xl text-sm focus:outline-none" style={inputStyle}>
+          {classList.map((c) => <option key={c}>{c}</option>)}
+        </select>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={inputStyle}>
+          <CalendarDays size={16} color={T.textSoft} />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm focus:outline-none" style={{ color: T.ink, background: "transparent" }} />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 mb-5">
+        {roster.map((s) => (
+          <Card key={s.id} className="p-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="font-semibold text-sm" style={{ color: T.ink }}>{s.name}</div>
+              <div className="text-xs" style={{ color: T.textSoft, ...FONTS.mono }}>Roll {s.roll}</div>
+            </div>
+            <div className="flex gap-1">
+              {STATUS_OPTS.map((opt) => {
+                const active = draft[s.id] === opt.id;
+                const c = TONES[opt.tone];
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => setDraft({ ...draft, [s.id]: opt.id })}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+                    style={{ backgroundColor: active ? c.bg : "transparent", color: active ? c.fg : T.textSoft, border: `1px solid ${active ? c.fg : T.line}` }}
+                  >
+                    <Icon size={13} /> <span className="hidden sm:inline">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        ))}
+        {roster.length === 0 && <div className="text-sm p-6 text-center" style={{ color: T.textSoft }}>No students in this class.</div>}
+      </div>
+
+      {roster.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="text-xs" style={{ color: T.textSoft, ...FONTS.mono }}>
+            {summary.present || 0} present · {summary.absent || 0} absent · {summary.leave || 0} leave
+          </div>
+          <Button variant="marigold" onClick={save}>
+            {saved ? <><Check size={16} /> Saved</> : "Save attendance"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------- fees ---------------------------------- */
+function Fees({ students, fees, collectedPct, totalCollected, totalDue, onPay }) {
+  const [filter, setFilter] = useState("all");
+  const nameFor = (id) => students.find((s) => s.id === id);
+  const list = fees.filter((f) => filter === "all" || f.status === filter);
+
+  return (
+    <div>
+      <SectionTitle eyebrow={CURRENT_TERM} title="Fee collection" />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+        <Card className="p-4 flex items-center gap-4">
+          <ProgressRing percent={collectedPct} size={70}>
+            <span className="text-sm font-bold" style={{ color: T.ink, ...FONTS.mono }}>{collectedPct}%</span>
+          </ProgressRing>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textSoft }}>Collected</div>
+            <div className="text-lg font-bold" style={{ color: T.sageDark, ...FONTS.mono }}>{INR(totalCollected)}</div>
+          </div>
+        </Card>
+        <Card className="p-4 flex items-center gap-4">
+          <ProgressRing percent={100 - collectedPct} size={70} from={T.maroon} to={T.marigold}>
+            <IndianRupee size={20} color={T.maroonDark} />
+          </ProgressRing>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textSoft }}>Outstanding</div>
+            <div className="text-lg font-bold" style={{ color: T.maroonDark, ...FONTS.mono }}>{INR(totalDue)}</div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        {["all", "due", "paid"].map((f) => (
+          <button
+            key={f} onClick={() => setFilter(f)}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold capitalize"
+            style={{ backgroundColor: filter === f ? T.ink : "#fff", color: filter === f ? "#fff" : T.textSoft, border: `1px solid ${T.line}` }}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {list.map((f) => {
+          const s = nameFor(f.studentId);
+          if (!s) return null;
+          return (
+            <Card key={f.id} className="p-3 sm:p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-semibold text-sm truncate" style={{ color: T.ink }}>{s.name}</div>
+                <div className="text-xs" style={{ color: T.textSoft, ...FONTS.mono }}>{s.cls} · {f.term}</div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-sm font-bold" style={{ color: T.ink, ...FONTS.mono }}>{INR(f.amount)}</span>
+                {f.status === "paid" ? (
+                  <Badge tone="sage">Paid {fmtDate(f.paidOn)}</Badge>
+                ) : (
+                  <Button variant="marigold" onClick={() => onPay(f)}>Record payment</Button>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+        {list.length === 0 && <div className="text-sm p-6 text-center" style={{ color: T.textSoft }}>Nothing here.</div>}
+      </div>
+    </div>
+  );
+}
+
+function PayModal({ fee, student, onClose, onConfirm }) {
+  const [mode, setMode] = useState("UPI");
+  if (!fee || !student) return null;
+  return (
+    <Modal open={!!fee} onClose={onClose} title="Record payment">
+      <div className="mb-4">
+        <div className="font-semibold" style={{ color: T.ink }}>{student.name}</div>
+        <div className="text-sm" style={{ color: T.textSoft }}>{student.cls} · {fee.term}</div>
+      </div>
+      <div className="text-3xl font-bold mb-4" style={{ color: T.ink, ...FONTS.mono }}>{INR(fee.amount)}</div>
+      <Field label="Payment mode">
+        <select value={mode} onChange={(e) => setMode(e.target.value)} className={inputClass} style={inputStyle}>
+          <option>UPI</option><option>Cash</option><option>Card</option><option>Bank transfer</option>
+        </select>
+      </Field>
+      <Button className="w-full justify-center" variant="marigold" onClick={() => onConfirm(fee.id, mode)}>
+        <Check size={16} /> Confirm payment received
+      </Button>
+    </Modal>
+  );
+}
+
+/* -------------------------------- notices -------------------------------- */
+function Notices({ notices, onAdd }) {
+  return (
+    <div>
+      <SectionTitle title="Notices" right={<Button onClick={onAdd}><Plus size={16} /> New notice</Button>} />
+      <div className="flex flex-col gap-3">
+        {notices.map((n) => (
+          <Card key={n.id} className="p-4">
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <div className="font-semibold text-sm" style={{ color: T.ink }}>{n.title}</div>
+              <Badge tone="peacock">{n.audience}</Badge>
+            </div>
+            <div className="text-sm leading-relaxed" style={{ color: T.textSoft }}>{n.body}</div>
+            <div className="text-xs mt-2 flex items-center gap-1" style={{ color: T.textSoft, ...FONTS.mono }}><ArrowUpRight size={12} />{fmtDate(n.date)}</div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AddNoticeModal({ open, onClose, onAdd }) {
+  const [form, setForm] = useState({ title: "", body: "", audience: "All" });
+  useEffect(() => { if (open) setForm({ title: "", body: "", audience: "All" }); }, [open]);
+  return (
+    <Modal open={open} onClose={onClose} title="Post a notice">
+      <Field label="Title"><input className={inputClass} style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>
+      <Field label="Message"><textarea rows={4} className={inputClass} style={inputStyle} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></Field>
+      <Field label="Audience">
+        <select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} className={inputClass} style={inputStyle}>
+          <option>All</option><option>Parents</option><option>Teachers</option><option>Students</option>
+        </select>
+      </Field>
+      <Button className="w-full justify-center mt-1" variant="marigold" disabled={!form.title || !form.body} onClick={() => onAdd(form)}>
+        <GraduationCap size={16} /> Publish notice
+      </Button>
+    </Modal>
+  );
+}
